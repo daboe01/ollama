@@ -730,7 +730,7 @@ curl http://localhost:11434/api/chat -d '{
       }
     }
   ],
-  "stream": false 
+  "stream": false
 }'
 ```
 
@@ -1869,5 +1869,3 @@ curl http://localhost:11434/api/version
   "version": "0.5.1"
 }
 ```
-
-

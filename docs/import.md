@@ -79,7 +79,7 @@ This includes importing foundation models as well as any fine tuned models which
 
 If you have a GGUF based model or adapter it is possible to import it into Ollama. You can obtain a GGUF model or adapter by:
 
-  * converting a Safetensors model with the `convert_hf_to_gguf.py` from Llama.cpp; 
+  * converting a Safetensors model with the `convert_hf_to_gguf.py` from Llama.cpp;
   * converting a Safetensors adapter with the `convert_lora_to_gguf.py` from Llama.cpp; or
   * downloading a model or adapter from a place such as HuggingFace
 
@@ -100,7 +100,7 @@ When importing a GGUF adapter, it's important to use the same base model as the 
 
  * a model from Ollama
  * a GGUF file
- * a Safetensors based model 
+ * a Safetensors based model
 
 Once you have created your `Modelfile`, use the `ollama create` command to build the model.
 
@@ -173,4 +173,3 @@ Once your model has been pushed, other users can pull and run it by using the co
 ```shell
 ollama run myuser/mymodel
 ```
-

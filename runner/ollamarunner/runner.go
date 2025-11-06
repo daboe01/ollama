@@ -933,6 +933,48 @@ func (s *Server) completion(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (s *Server) imageEmbeddings(w http.ResponseWriter, r *http.Request) {
+	multimodalProcessor, ok := s.model.(model.MultimodalProcessor)
+	if !ok {
+		http.Error(w, "this model does not support image embeddings", http.StatusNotImplemented)
+		return
+	}
+
+	if pooling.Type(s.model.Backend().Config().Uint("pooling_type")) == pooling.TypeNone {
+		http.Error(w, "this model does not support embeddings", http.StatusNotImplemented)
+		return
+	}
+
+	var req struct {
+		Image llm.ImageData `json:"image"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, fmt.Sprintf("bad request: %s", err), http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	ctx := s.model.Backend().NewContext()
+	defer ctx.Close()
+	imageEmbeddings, err := multimodalProcessor.EncodeMultimodal(ctx, req.Image.Data)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("failed to encode image: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	if len(imageEmbeddings) == 0 || imageEmbeddings[0].Tensor.Dim(0) == 0 {
+		http.Error(w, "failed to get image embedding", http.StatusInternalServerError)
+		return
+	}
+
+	if err := json.NewEncoder(w).Encode(&llm.EmbeddingResponse{
+		Embedding: imageEmbeddings[0].Tensor.Floats(),
+	}); err != nil {
+		http.Error(w, fmt.Sprintf("failed to encode response: %v", err), http.StatusInternalServerError)
+	}
+}
+
 func (s *Server) embeddings(w http.ResponseWriter, r *http.Request) {
 	if pooling.Type(s.model.Backend().Config().Uint("pooling_type")) == pooling.TypeNone {
 		http.Error(w, "this model does not support embeddings", http.StatusNotImplemented)
@@ -946,7 +988,7 @@ func (s *Server) embeddings(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	seq, err := s.NewSequence(req.Content, nil, NewSequenceParams{
+	seq, err := s.NewSequence(req.Content, req.Images, NewSequenceParams{
 		embedding: true,
 
 		// TODO (jmorganca): this should be provided by the server via the
@@ -1364,6 +1406,7 @@ func Execute(args []string) error {
 	mux.HandleFunc("GET /info", server.info)
 	mux.HandleFunc("POST /load", server.load)
 	mux.HandleFunc("POST /embedding", server.embeddings)
+	mux.HandleFunc("POST /image-embedding", server.imageEmbeddings)
 	mux.HandleFunc("POST /completion", server.completion)
 	mux.HandleFunc("GET /health", server.health)
 

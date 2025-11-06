@@ -647,13 +647,23 @@ func (s *Server) EmbedHandler(c *gin.Context) {
 		}
 	}
 
+	if len(input) > 0 && len(req.Images) > 1 && len(input) != len(req.Images) {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "number of images must be 1 or equal to the number of inputs"})
+		return
+	}
+
 	name, err := getExistingName(model.ParseName(req.Model))
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("model '%s' not found", req.Model)})
 		return
 	}
 
-	r, m, opts, err := s.scheduleRunner(c.Request.Context(), name.String(), []model.Capability{}, req.Options, req.KeepAlive)
+	caps := []model.Capability{}
+	if len(req.Images) > 0 {
+		caps = append(caps, model.CapabilityVision)
+	}
+
+	r, m, opts, err := s.scheduleRunner(c.Request.Context(), name.String(), caps, req.Options, req.KeepAlive)
 	if err != nil {
 		handleScheduleError(c, req.Model, err)
 		return
@@ -662,7 +672,44 @@ func (s *Server) EmbedHandler(c *gin.Context) {
 	checkpointLoaded := time.Now()
 
 	if len(input) == 0 {
-		c.JSON(http.StatusOK, api.EmbedResponse{Model: req.Model, Embeddings: [][]float32{}})
+		if len(req.Images) == 0 {
+			c.JSON(http.StatusOK, api.EmbedResponse{Model: req.Model, Embeddings: [][]float32{}})
+			return
+		}
+
+		// image-only embeddings
+		var g errgroup.Group
+		embeddings := make([][]float32, len(req.Images))
+		for i := range req.Images {
+			i := i
+			g.Go(func() error {
+				embedding, err := r.Embedding(c.Request.Context(), "", llm.ImageData{ID: 0, Data: req.Images[i]})
+				if err != nil {
+					return err
+				}
+
+				embedding = normalize(embedding)
+				if req.Dimensions > 0 && req.Dimensions < len(embedding) {
+					embedding = normalize(embedding[:req.Dimensions])
+				}
+
+				embeddings[i] = embedding
+				return nil
+			})
+		}
+
+		if err := g.Wait(); err != nil {
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": strings.TrimSpace(err.Error())})
+			return
+		}
+
+		resp := api.EmbedResponse{
+			Model:      req.Model,
+			Embeddings: embeddings,
+			TotalDuration:   time.Since(checkpointStart),
+			LoadDuration:    checkpointLoaded.Sub(checkpointStart),
+		}
+		c.JSON(http.StatusOK, resp)
 		return
 	}
 
@@ -719,8 +766,18 @@ func (s *Server) EmbedHandler(c *gin.Context) {
 	var g errgroup.Group
 	embeddings := make([][]float32, len(input))
 	for i, text := range input {
+		i, text := i, text
 		g.Go(func() error {
-			embedding, err := r.Embedding(c.Request.Context(), text)
+			var images []llm.ImageData
+			if len(req.Images) > 0 {
+				if len(req.Images) == 1 {
+					images = []llm.ImageData{{ID: 0, Data: req.Images[0]}}
+				} else {
+					images = []llm.ImageData{{ID: 0, Data: req.Images[i]}}
+				}
+			}
+
+			embedding, err := r.Embedding(c.Request.Context(), text, images...)
 			if err != nil {
 				return err
 			}
@@ -748,6 +805,7 @@ func (s *Server) EmbedHandler(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, resp)
 }
+
 
 func normalize(vec []float32) []float32 {
 	var sum float32

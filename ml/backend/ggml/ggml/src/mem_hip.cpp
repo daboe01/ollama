@@ -343,7 +343,7 @@ int ggml_hip_get_device_memory(int pci_bus_id, int pci_device_id, size_t *free, 
     IADLXGPU* gpu = NULL;
     IADLXGPUMetrics *gpuMetrics = NULL;
     ADLX_RESULT status;
-    // The "UniqueID" exposed in ADLX is the PCI Bus and Device IDs 
+    // The "UniqueID" exposed in ADLX is the PCI Bus and Device IDs
     adlx_int target = (pci_bus_id << 8) | (pci_device_id & 0xff);
 
     status = adlx.sys->pVtbl->GetPerformanceMonitoringServices(adlx.sys, &perfMonitoringServices);

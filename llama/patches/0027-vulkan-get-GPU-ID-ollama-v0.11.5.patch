@@ -91,5 +91,5 @@ index 061cd078..adea7783 100644
                  devices.push_back(new ggml_backend_device {
                      /* .iface   = */ ggml_backend_vk_device_i,
                      /* .reg     = */ reg,
--- 
+--
 2.51.0

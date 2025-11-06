@@ -70,7 +70,7 @@ and GPU library dependencies for Nvidia.  If you have an AMD GPU, also download
 and extract the additional ROCm package `ollama-windows-amd64-rocm.zip` into the
 same directory.  Both zip files are necessary for a complete AMD installation.
 This allows for embedding Ollama in existing applications, or running it as a
-system service via `ollama serve` with tools such as [NSSM](https://nssm.cc/). 
+system service via `ollama serve` with tools such as [NSSM](https://nssm.cc/).
 
-> [!NOTE]  
+> [!NOTE]
 > If you are upgrading from a prior version, you should remove the old directories first.

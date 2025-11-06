@@ -54,7 +54,7 @@ sudo systemctl restart docker
 docker run -d --gpus=all -v ollama:/root/.ollama -p 11434:11434 --name ollama ollama/ollama
 ```
 
-> [!NOTE]  
+> [!NOTE]
 > If you're running on an NVIDIA JetPack system, Ollama can't automatically discover the correct JetPack version. Pass the environment variable JETSON_JETPACK=5 or JETSON_JETPACK=6 to the container to select version 5 or 6.
 
 ### AMD GPU
